@@ -87,13 +87,6 @@ Experimentally measured encoder resolution:
 
 Configuring encoder readings properly proved to be very challenging. Once I had configured the STM32 in CubeMX, I needed to verify the information on the encoder datasheet regarding counts per revolution and timing. I ended up manually turning the motor shaft to try and get a value for this, and it did align closely with the datasheet. However I was getting some strange readings for the RPM once the motor was powered. 
 
-## Project Status
-
-🟢 Motor characterisation complete  
-🟢 Open-loop load testing complete  
-🔴 Closed-loop controller — next stage  
-🔴 P/PI/PID tuning — next stage
-
 ## UART
 
 USART2 is used to transmit motor telemetry to a PC through the Nucleo's ST-LINK virtual COM port.
