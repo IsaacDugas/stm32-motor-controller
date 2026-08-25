@@ -21,7 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -31,7 +32,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define ENCODER_COUNTS_PER_REV 1940.0f
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -43,9 +44,10 @@
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
+UART_HandleTypeDef huart2;
+
 /* USER CODE BEGIN PV */
-int motor_duty = 50;
-int encoder_count;
+int motor_duty = 85;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -53,6 +55,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -70,7 +73,17 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+	int previous_count = 0;
+	int current_count = 0;
+	int delta_count = 0;
 
+	int previous_time = 0;
+	int current_time = 0;
+	int delta_time = 0;
+
+	float rpm = 0.0f;
+
+	char message[64];
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -93,6 +106,7 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM3_Init();
   MX_TIM2_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
   HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
@@ -101,6 +115,10 @@ int main(void)
   HAL_GPIO_WritePin(MOTOR_IN_2_GPIO_Port, MOTOR_IN_2_Pin, GPIO_PIN_RESET);
 
   __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, motor_duty);
+  __HAL_TIM_SET_COUNTER(&htim2, 0);
+
+  previous_count = (int)__HAL_TIM_GET_COUNTER(&htim2);
+  previous_time = HAL_GetTick();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -110,7 +128,20 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  encoder_count = __HAL_TIM_GET_COUNTER(&htim2);
+	  current_count = (int)__HAL_TIM_GET_COUNTER(&htim2);
+	  current_time = HAL_GetTick();
+
+	  delta_count = current_count - previous_count;
+	  delta_time = current_time - previous_time;
+	  rpm = ((float)delta_count / ENCODER_COUNTS_PER_REV) * (60000 / (float)delta_time); // RPM = (counts/(count/rev)) x (60,000 / dT in ms)
+	  previous_count = current_count;
+	  previous_time = current_time;
+
+	  snprintf(message, sizeof(message), "RPM: %d\r\n", (int)rpm);
+
+	  HAL_UART_Transmit(&huart2, (uint8_t *)message, strlen(message), HAL_MAX_DELAY);
+
+	  HAL_Delay(500);
   }
   /* USER CODE END 3 */
 }
@@ -261,6 +292,39 @@ static void MX_TIM3_Init(void)
 }
 
 /**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -289,14 +353,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : USART_TX_Pin USART_RX_Pin */
-  GPIO_InitStruct.Pin = USART_TX_Pin|USART_RX_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LD2_Pin MOTOR_IN1_Pin */
   GPIO_InitStruct.Pin = LD2_Pin|MOTOR_IN1_Pin;

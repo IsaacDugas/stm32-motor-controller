@@ -1,8 +1,48 @@
-## Project Overiew
+# Project Overiew
 
-Project looking at controlling a DC motor using an STM32 Nucleo board (NUCLEO-F446RE) along with an L298N motor driver and some basic components.
+Project looking at controlling a DC motor using an STM32 Nucleo board (NUCLEO-F446RE) along with an L298N motor driver, encoder and some basic components.
 
 Starting with open loop control of the motor, and using PWM to control the speed, with the plan to eventually move towards closed loop control and PID while implementing encoders to measure the actual rotation speed of the motor.
+
+## Project Objectives
+
+The aim of this project is to develop a motor speed controller
+capable of maintaining a requested motor speed despite changes in
+mechanical load.
+
+The project is being developed incrementally to investigate:
+
+- Embedded C programming
+- STM32 peripherals and timers
+- PWM generation
+- H-bridge motor control
+- Quadrature encoder feedback
+- Real-time speed measurement
+- UART telemetry
+- Motor/system characterisation
+- Feedback control
+- P, PI and PID controllers
+- Practical controller tuning
+- Hardware/software debugging
+
+The final system will accept a target motor speed and automatically
+adjust the PWM duty cycle to maintain that speed.
+
+## Development Process
+
+The development stages are:
+
+1. PWM generation
+2. Motor driver integration
+3. Motor operation
+4. Quadrature encoder integration
+5. Encoder validation
+6. Real-time speed measurement
+7. UART telemetry
+8. Motor characterisation
+9. Open-loop load testing
+10. Closed-loop control
+11. Controller tuning
 
 ## Open-loop motor control
 
@@ -16,20 +56,217 @@ L298N IN1 and IN2 inputs.
 
 | Parameter | Value |
 |---|---:|
-| Motor | 12 V DC geared motor |
+| Motor | 6 V DC geared motor |
 | Driver | L298N |
 | PWM frequency | 10 kHz |
 | PWM output | PA6 / TIM3_CH1 |
 | Direction | PA7 / PB6 |
-| Motor supply | 12 V |
+| Motor supply | 6 V |
 | Initial starting threshold | ~50% PWM |
 
 ### Observations
 
-The motor reliably starts at approximately 50% PWM duty cycle under
-the current conditions. At approximately 45%, the motor does not
+The motor reliably starts at approximately 65% PWM duty cycle under
+the current conditions. At approximately 60%, the motor does not
 reliably start.
 
 The starting threshold is not expected to be perfectly repeatable
 because it depends on rotor position, friction, battery voltage and
 mechanical load.
+
+## Quadrature Encoder Implementation
+
+TIM2 is configured in encoder mode to read the quadrature encoder. The encoder provides position/count information which is used to
+calculate motor speed.
+
+Experimentally measured encoder resolution:
+
+~1940 counts/output-shaft revolution
+
+### Observations
+
+Configuring encoder readings properly proved to be very challenging. Once I had configured the STM32 in CubeMX, I needed to verify the information on the encoder datasheet regarding counts per revolution and timing. I ended up manually turning the motor shaft to try and get a value for this, and it did align closely with the datasheet. However I was getting some strange readings for the RPM once the motor was powered. 
+
+## Project Status
+
+🟢 Motor characterisation complete  
+🟢 Open-loop load testing complete  
+🔴 Closed-loop controller — next stage  
+🔴 P/PI/PID tuning — next stage
+
+## UART
+
+USART2 is used to transmit motor telemetry to a PC through the Nucleo's ST-LINK virtual COM port.
+
+Example output:
+
+    RPM: 51
+    RPM: 52
+    RPM: 51
+
+## Development Issues and Investigations
+
+### PWM output verification without test equipment
+
+Initially no oscilloscope, multimeter or logic analyser was available.
+
+PWM output was therefore verified experimentally by using an LED as
+a simple indicator and subsequently by connecting the PWM output to
+the motor driver.
+
+This provided basic functional verification before moving to motor
+control.
+
+A proper oscilloscope/logic analyser would provide a more rigorous
+verification of PWM frequency and duty cycle.
+
+### Encoder configuration and validation
+
+TIM2 was configured in quadrature encoder mode.
+
+The encoder counter was monitored while manually rotating the motor
+output shaft.
+
+Multiple measurements gave:
+
+| Revolution | Counts |
+|---|---:|
+| 1 | 1945 |
+| 2 | 1930 |
+| 3 | 1951 |
+
+This gives an experimental value of approximately:
+
+~1940 counts/output-shaft revolution
+
+The measured value was therefore used in the speed calculation rather
+than relying solely on the nominal specification.
+
+### Debugger and real-time measurements
+
+Initial attempts to observe changing encoder/RPM variables using the
+IDE's debugger tool were misleading because execution was being interrupted by
+breakpoints/stepping.
+
+This resulted in measurements that depended on when execution was
+manually continued.
+
+The solution was to run the controller normally and transmit
+measurements over UART.
+
+This provided continuous real-time telemetry without stopping CPU
+execution.
+
+### Timing validation
+
+The motor speed calculation initially assumed a fixed 500 ms
+measurement period.
+
+To make the measurement more robust, the actual elapsed time was
+measured using `HAL_GetTick()`.
+
+The measured loop period was approximately:
+
+~502 ms
+
+The HAL timing system was independently tested using a 500 ms delay,
+which consistently produced approximately 501 ms elapsed time.
+
+The final RPM calculation therefore uses the measured elapsed time:
+
+    RPM =
+        (delta_counts / counts_per_revolution)
+        x
+        (60000 / delta_time_ms)
+
+This avoids relying on an assumed loop period.
+
+## Motor Characterisation
+
+Before implementing feedback control, the motor was characterised
+under open-loop PWM control.
+
+The objective was to determine the relationship between PWM duty cycle
+and steady-state motor speed.
+
+Results from this can be seen in the motor-characterisation doc.
+
+## Open-Loop Load Test
+
+The motor was operated at a constant PWM duty cycle of 85%.
+
+Under no additional mechanical load, the motor settled at approximately
+51-52 RPM.
+
+Two mechanical load disturbances were then applied to the output shaft.
+
+### Load event 1
+
+- Unloaded speed: ~52 RPM
+- Minimum observed speed: ~41 RPM
+- Speed reduction: ~21%
+
+### Load event 2
+
+- Unloaded speed: ~52 RPM
+- Minimum observed speed: ~35 RPM
+- Speed reduction: ~33%
+
+In both cases the PWM command remained fixed at 85%. Once the load was
+removed, the motor speed recovered towards its original ~52 RPM.
+
+This demonstrates the fundamental limitation of open-loop speed control:
+the same control input can produce significantly different motor speeds
+depending on the mechanical load.
+
+The encoder allows the STM32 to observe this speed variation, providing
+the feedback required for closed-loop control.
+
+### Observations
+
+The same PWM command can produce substantially different motor speeds
+depending on mechanical load.
+
+This experimentally demonstrates the limitation of open-loop speed
+control and provides the motivation for implementing feedback control.
+
+The encoder provides the required measurement of actual motor speed,
+allowing the controller to compensate for disturbances.
+
+## Future Work
+
+### Closed-loop control
+
+- Implement proportional control
+- Determine suitable proportional gain
+- Investigate steady-state error
+- Add integral control
+- Investigate integral wind-up
+- Evaluate whether derivative control provides useful benefit
+- Implement output saturation
+- Implement anti-windup
+- Tune the final controller
+
+### Improved telemetry
+
+- Enable floating-point UART output
+- Log data directly to a PC
+- Record target RPM, measured RPM and PWM duty cycle
+- Analyse transient response
+
+### Performance evaluation
+
+Measure:
+
+- rise time
+- settling time
+- overshoot
+- steady-state error
+- disturbance rejection
+- response to different target speeds
+
+### Hardware improvements
+
+Potential future improvements include replacing the L298N with a
+modern MOSFET-based motor driver and comparing the resulting motor
+performance.
