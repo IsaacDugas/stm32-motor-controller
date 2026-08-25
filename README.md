@@ -62,7 +62,7 @@ L298N IN1 and IN2 inputs.
 | PWM output | PA6 / TIM3_CH1 |
 | Direction | PA7 / PB6 |
 | Motor supply | 6 V |
-| Initial starting threshold | ~50% PWM |
+| Initial starting threshold | ~65% PWM |
 
 ### Observations
 
