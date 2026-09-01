@@ -62,7 +62,7 @@ L298N IN1 and IN2 inputs.
 | PWM output | PA6 / TIM3_CH1 |
 | Direction | PA7 / PB6 |
 | Motor supply | 6 V |
-| Initial starting threshold | ~50% PWM |
+| Initial starting threshold | ~65% PWM |
 
 ### Observations
 
@@ -86,13 +86,6 @@ Experimentally measured encoder resolution:
 ### Observations
 
 Configuring encoder readings properly proved to be very challenging. Once I had configured the STM32 in CubeMX, I needed to verify the information on the encoder datasheet regarding counts per revolution and timing. I ended up manually turning the motor shaft to try and get a value for this, and it did align closely with the datasheet. However I was getting some strange readings for the RPM once the motor was powered. 
-
-## Project Status
-
-🟢 Motor characterisation complete  
-🟢 Open-loop load testing complete  
-🔴 Closed-loop controller — next stage  
-🔴 P/PI/PID tuning — next stage
 
 ## UART
 
