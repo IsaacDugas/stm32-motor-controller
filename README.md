@@ -226,6 +226,115 @@ control and provides the motivation for implementing feedback control.
 The encoder provides the required measurement of actual motor speed,
 allowing the controller to compensate for disturbances.
 
+## Proportional Control
+
+The first closed-loop controller implemented was a proportional (P)
+controller.
+
+The controller calculates the speed error:
+
+```
+error = target_RPM - measured_RPM
+```
+
+and adjusts the PWM command according to:
+
+```
+PWM = minimum_PWM + (Kp x error)
+```
+
+The controller output is constrained to the valid PWM range of 0-100%.
+
+A target speed of 50 RPM was selected for the initial experiments.
+
+### P Controller - Kp = 1.0
+
+With:
+
+```
+Target speed = 50 RPM
+Kp = 1.0
+Minimum PWM = 60%
+```
+
+the motor settled at approximately 30-32 RPM.
+
+Typical steady-state behaviour was:
+
+```
+RPM ~ 31 RPM
+PWM ~ 79%
+Error ~ 19 RPM
+```
+
+The controller therefore maintained a significant steady-state error.
+
+This occurs because a proportional controller requires a non-zero error
+to generate additional control output. Increasing the PWM enough to
+eliminate the error would increase the motor speed, which would then
+reduce the error and consequently reduce the controller output.
+
+The result is an equilibrium where the motor operates below the target
+speed with a persistent error.
+
+### P Controller - Kp = 2.0
+
+The proportional gain was then increased:
+
+```
+Target speed = 50 RPM
+Kp = 2.0
+Minimum PWM = 60%
+```
+
+The steady-state speed increased to approximately 37-39 RPM, reducing
+the steady-state error.
+
+Typical behaviour was:
+
+```
+RPM ~ 38 RPM
+PWM ~ 83-85%
+Error ~ 11-12 RPM
+```
+
+However, the system also exhibited significantly more oscillatory
+behaviour.
+
+Representative measurements included:
+
+```
+RPM: 42  PWM: 75
+RPM: 34  PWM: 91
+RPM: 39  PWM: 81
+RPM: 35  PWM: 88
+RPM: 40  PWM: 78
+```
+
+The controller was repeatedly increasing and decreasing the PWM in
+response to changes in measured speed.
+
+### Observations
+
+The two experiments demonstrate the fundamental trade-off associated
+with proportional control.
+
+|  Kp | Typical RPM | Typical Error | Behaviour                                   |
+| --: | ----------: | ------------: | ------------------------------------------- |
+| 1.0 |     ~31 RPM |       ~19 RPM | Relatively stable, large steady-state error |
+| 2.0 |     ~38 RPM |       ~12 RPM | Smaller error, increased oscillation        |
+
+Increasing proportional gain reduced the steady-state error but also
+increased the tendency of the system to oscillate.
+
+The relatively long 500 ms control period also contributes to the
+oscillatory behaviour. The controller makes a correction and then waits
+approximately half a second before receiving the next speed
+measurement.
+
+This experiment demonstrated why simply increasing proportional gain
+is not sufficient to achieve accurate speed control.
+
 ## Future Work
 
 ### Closed-loop control
