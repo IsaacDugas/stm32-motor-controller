@@ -33,6 +33,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define ENCODER_COUNTS_PER_REV 1940.0f
+#define TARGET_RPM 50.0f
+#define KP 2.0f
+#define MIN_PWM 60.0f
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -82,6 +85,9 @@ int main(void)
 	int delta_time = 0;
 
 	float rpm = 0.0f;
+
+	float error;
+	float pwm;
 
 	char message[64];
   /* USER CODE END 1 */
@@ -137,7 +143,21 @@ int main(void)
 	  previous_count = current_count;
 	  previous_time = current_time;
 
-	  snprintf(message, sizeof(message), "RPM: %d\r\n", (int)rpm);
+	  error = TARGET_RPM -rpm;
+
+	  pwm = MIN_PWM + (KP * error);
+
+	  if (pwm > 100){
+		  pwm = 100;
+	  }
+
+	  if (pwm < 0){
+		  pwm = 0;
+	  }
+
+	  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, (int)pwm);
+
+	  snprintf(message, sizeof(message), "RPM: %d PWM: %d ERROR: %d\r\n", (int)rpm, (int)pwm, (int)error);
 
 	  HAL_UART_Transmit(&huart2, (uint8_t *)message, strlen(message), HAL_MAX_DELAY);
 
